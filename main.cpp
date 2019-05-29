@@ -1,6 +1,7 @@
 #include <iostream>
-
+#include <algorithm>
 #include "main.h"
+
 
 size_t NodeCompare(std::string& s1, std::string& s2) {
 	size_t res, max = std::max(s1.length(), s2.length());
@@ -10,87 +11,159 @@ size_t NodeCompare(std::string& s1, std::string& s2) {
 	return res;
 }
 
-void SwapNodes(std::shared_ptr<Node> pOldNode, std::shared_ptr<Node> pNewNode) {
-	if(pOldNode->root) {
-		pOldNode->root = false;
-		pNewNode->root = true;
-	}
-	pOldNode->is_end = false;
-	pNewNode->is_end = true;
-	std::swap(pNewNode, pOldNode);
-}
+//-----------------------------------------------------------------------------------------
 
 void Node::ShowChidren(std::string pref) const {
-	std::cout << pref << " + " << label << std::endl;
+	std::cout << pref << " + " << label << (is_end?"$":"") << std::endl;
 	for(auto node: children)
 		node->ShowChidren(pref + " |");	
 }
 
-void RadixTree::Add(std::string &&s) {
-	size_t max = 0, i;
-	std::shared_ptr<Node> best_parent = nullptr;
-	for(auto &node : data) {
-		i = NodeCompare(s, node.second->label); 
-		if(i > max) {
-			best_parent = node.second;
-			max = i;
-		}
+void Node::ShowChidrenUnique(std::string pref) const {
+	if (is_end)
+		std::cout << pref + label << " " << pref << label[0] << std::endl;
+	for (auto node : children)
+		node->ShowChidrenUnique(pref + label);
+}
+
+//-----------------------------------------------------------------------------------------
+
+void RadixTree::AddNode(std::shared_ptr<Node> pChild, std::shared_ptr<Node> pParent) {
+	if (pParent) {
+		pChild->parent = pParent;
+		pParent->children.push_back(pChild);
 	}
-	auto pNode = std::make_shared<Node>();
-	pNode->label = s;
-	data.insert(std::pair<std::string, std::shared_ptr<Node>>(s, pNode));
-	if(max > 0) {
-		if(s.length() > best_parent->label.length()) {
-			best_parent->is_end = false;
-			pNode->root = false;
-			best_parent->children.push_back(pNode);
+	else
+		data.insert(pChild);
+}
+
+void RadixTree::EraseFromRoot(std::shared_ptr<Node> pNode) {
+	auto it = data.find(pNode);
+	if (it != data.end())
+		data.erase(it);
+}
+
+std::shared_ptr<Node> RadixTree::AddProxy(std::shared_ptr<Node> pNode, std::shared_ptr<Node> best_parent) {
+	auto pProxiNode = std::make_shared<Node>();
+	std::shared_ptr<Node> pBigParent = best_parent->parent;
+	if (pBigParent) {
+		pBigParent->children.remove(best_parent);
+		AddNode(pProxiNode, pBigParent);
+	}
+	else {
+		EraseFromRoot(best_parent);
+		AddNode(pProxiNode);
+	}
+	pProxiNode->is_end = false;
+	AddNode(pNode, pProxiNode);
+	AddNode(best_parent, pProxiNode);
+	return pProxiNode;
+}
+
+
+void RadixTree::ChangePlaces(std::shared_ptr<Node> pNode, std::shared_ptr<Node> best_parent) {
+	if (best_parent->parent) {
+		auto pBigParent = best_parent->parent;
+		if (pBigParent) {
+			pBigParent->children.remove(best_parent);
+			AddNode(pNode, pBigParent);
 		}
 		else {
-			if(best_parent->root) {
-				best_parent->root = false;
-				pNode->root = true;
-			}
-			best_parent->is_end = false;
-			pNode->is_end = true;
-			pNode->children.push_back(best_parent);
+			EraseFromRoot(best_parent);
+			AddNode(pNode);
+		}
+	}
+	AddNode(best_parent, pNode);
+}
+
+
+bool RadixTree::FindSubTree(std::shared_ptr<Node> cur_node, std::string s2search, std::string prefix, size_t& prev_max, std::shared_ptr<Node> &pBest_node, std::string &parent_label) const {
+	bool res = false;
+	std::string wholelabel = prefix + cur_node->label;
+	size_t i = NodeCompare(wholelabel, s2search);
+	if (i > prev_max || (i > 0 && i == prev_max && !pBest_node->is_end)) {
+		pBest_node = cur_node;
+		prev_max = i;
+		parent_label = wholelabel;
+		res = true;
+	}
+	for (auto node : cur_node->children)
+		res = res | FindSubTree(node, s2search, wholelabel, prev_max, pBest_node, parent_label);
+	return res;
+}
+
+void RadixTree::Add(std::string &&s) {
+	size_t max = 0, i;
+	std::string parent_label = "";
+	std::shared_ptr<Node> best_parent = nullptr;
+	for (auto &node : data) {
+			FindSubTree(node, s, "", max, best_parent, parent_label);
+	}
+	auto pNode = std::make_shared<Node>();
+	if (max == 0 || max == s.length())
+		pNode->label = s;
+	else
+		pNode->label = s.substr(max, s.length() - max);
+	// не нашли подходящего родителя
+	if (max == 0) {
+		AddNode(pNode);
+	}
+	else // нашли подходящего родителя
+	{
+		// создаем промежуточную ноду и добавляемся с родителем в дети, (обрезав label у родителя)
+		if (max < s.length() && max < parent_label.length() ) {  
+			std::shared_ptr<Node> pProxiNode = AddProxy(pNode, best_parent);
+			pProxiNode->label = s.substr(parent_label.length() - best_parent->label.length(), std::max(s.length(), parent_label.length()) - max);
+			best_parent->label = parent_label.substr(max, parent_label.length() - (max - 1));
+		}
+		// мы меньше родителя, теперь мы родитель, а он у нас в чайлдах (предварительно обрезав label у родителя)
+		else if (max == s.length())  { 
+			pNode->label = s.substr(parent_label.length() - best_parent->label.length(), max - (parent_label.length() - best_parent->label.length()));
+			best_parent->label = parent_label.substr(max, parent_label.length() - (max - 1));
+			ChangePlaces(pNode, best_parent);
+		}
+		// мы больше родителя, просто добавляемся к нему дети
+		else if (max == parent_label.length()) { 
+			AddNode(pNode, best_parent);
 		}
 	}
 }
 
 void RadixTree::ShowPretty() const {
 	for(auto &node : data){
-		if(node.second->root) node.second->ShowChidren();
+			node->ShowChidren();
 	}
 }
 
+void RadixTree::ShowUnique() const {
+	for (auto &node : data) {
+			node->ShowChidrenUnique();
+	}
+}
+
+//-----------------------------------------------------------------------------------------
 
 int main()
 {
 	RadixTree rt;
-	rt.Add("aleksey");
-	rt.Add("alesha");
-	rt.Add("aleks");
-	rt.Add("maxim");
 
-	rt.ShowPretty();
+	std::string line;
+	while (std::getline(std::cin, line)) {
+		if (line.empty())         
+			break;
+		rt.Add(line.c_str());
+		rt.ShowPretty();
+	}
+
+	rt.ShowUnique();
 
 	//std::system("pause");
 }
 
-/*
-aleksey
-  alesha
-  aleks
-maxim
 
-
-+ ale
-| + k$
-| | + s$
-| | + ey$
-| + sha$
-+ maksim$
-+ sasha$
-
-//  UTF-8
-*/
+/*rt.Add("aleksey");
+rt.Add("sasha");
+rt.Add("aleks");
+rt.Add("alek");
+rt.Add("alesha");
+rt.Add("maxim");*/
