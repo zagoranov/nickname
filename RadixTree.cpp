@@ -13,13 +13,13 @@ size_t NodeCompare(const std::string& s1, const std::string& s2) {
 
 //-----------------------------------------------------------------------------------------
 
-void Node::ShowChidren(std::string pref) const {
+void Node::ShowChidren(std::string& pref) const {
 	std::cout << pref << " + " << label << (is_end?"$":"") << std::endl;
 	for(const auto node: children)
 		node->ShowChidren(pref + " |");	
 }
 
-void Node::ShowChidrenUnique(std::string pref) const {
+void Node::ShowChidrenUnique(std::string& pref) const {
 	if (is_end)
 		std::cout << pref + label << " " << pref << label[0] << std::endl;
 	for (const auto node : children)
@@ -104,25 +104,25 @@ void RadixTree::Add(std::string &&s) {
 		pNode->label = s;
 	else
 		pNode->label = s.substr(max, s.length() - max);
-	// не нашли подходящего родителя
+	// Г­ГҐ Г­Г ГёГ«ГЁ ГЇГ®Г¤ГµГ®Г¤ГїГ№ГҐГЈГ® Г°Г®Г¤ГЁГІГҐГ«Гї
 	if (max == 0) {
 		AddNode(pNode);
 	}
-	else // нашли подходящего родителя
+	else // Г­Г ГёГ«ГЁ ГЇГ®Г¤ГµГ®Г¤ГїГ№ГҐГЈГ® Г°Г®Г¤ГЁГІГҐГ«Гї
 	{
-		// создаем промежуточную ноду и добавляемся с родителем в дети, (обрезав label у родителя)
+		// Г±Г®Г§Г¤Г ГҐГ¬ ГЇГ°Г®Г¬ГҐГ¦ГіГІГ®Г·Г­ГіГѕ Г­Г®Г¤Гі ГЁ Г¤Г®ГЎГ ГўГ«ГїГҐГ¬Г±Гї Г± Г°Г®Г¤ГЁГІГҐГ«ГҐГ¬ Гў Г¤ГҐГІГЁ, (Г®ГЎГ°ГҐГ§Г Гў label Гі Г°Г®Г¤ГЁГІГҐГ«Гї)
 		if (max < s.length() && max < parent_label.length() ) {  
 			std::shared_ptr<Node> pProxiNode = AddProxy(pNode, best_parent);
 			pProxiNode->label = s.substr(parent_label.length() - best_parent->label.length(), std::max(s.length(), parent_label.length()) - max);
 			best_parent->label = parent_label.substr(max, parent_label.length() - (max - 1));
 		}
-		// мы меньше родителя, теперь мы родитель, а он у нас в чайлдах (предварительно обрезав label у родителя)
+		// Г¬Г» Г¬ГҐГ­ГјГёГҐ Г°Г®Г¤ГЁГІГҐГ«Гї, ГІГҐГЇГҐГ°Гј Г¬Г» Г°Г®Г¤ГЁГІГҐГ«Гј, Г  Г®Г­ Гі Г­Г Г± Гў Г·Г Г©Г«Г¤Г Гµ (ГЇГ°ГҐГ¤ГўГ Г°ГЁГІГҐГ«ГјГ­Г® Г®ГЎГ°ГҐГ§Г Гў label Гі Г°Г®Г¤ГЁГІГҐГ«Гї)
 		else if (max == s.length())  { 
 			pNode->label = s.substr(parent_label.length() - best_parent->label.length(), max - (parent_label.length() - best_parent->label.length()));
 			best_parent->label = parent_label.substr(max, parent_label.length() - (max - 1));
 			ChangePlaces(pNode, best_parent);
 		}
-		// мы больше родителя, просто добавляемся к нему дети
+		// Г¬Г» ГЎГ®Г«ГјГёГҐ Г°Г®Г¤ГЁГІГҐГ«Гї, ГЇГ°Г®Г±ГІГ® Г¤Г®ГЎГ ГўГ«ГїГҐГ¬Г±Гї ГЄ Г­ГҐГ¬Гі Г¤ГҐГІГЁ
 		else if (max == parent_label.length()) { 
 			AddNode(pNode, best_parent);
 		}
