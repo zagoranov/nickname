@@ -22,13 +22,13 @@ void Node::ShowChidren(std::string& pref) const {
 void Node::ShowChidrenUnique(std::string& pref) const {
 	if (is_end)
 		std::cout << pref + label << " " << pref << label[0] << std::endl;
-	for (const auto node : children)
+	for (const auto& node : children)
 		node->ShowChidrenUnique(pref + label);
 }
 
 //-----------------------------------------------------------------------------------------
 
-void RadixTree::AddNode(std::shared_ptr<Node> pChild, std::shared_ptr<Node> pParent) {
+void RadixTree::AddNode(std::shared_ptr<Node>& pChild, std::shared_ptr<Node>& pParent) {
 	if (pParent) {
 		pChild->parent = pParent;
 		pParent->children.push_back(pChild);
@@ -37,13 +37,13 @@ void RadixTree::AddNode(std::shared_ptr<Node> pChild, std::shared_ptr<Node> pPar
 		data.insert(pChild);
 }
 
-void RadixTree::EraseFromRoot(std::shared_ptr<Node> pNode) {
+void RadixTree::EraseFromRoot(const std::shared_ptr<Node>& pNode) {
 	auto it = data.find(pNode);
 	if (it != data.end())
 		data.erase(it);
 }
 
-std::shared_ptr<Node> RadixTree::AddProxy(std::shared_ptr<Node> pNode, std::shared_ptr<Node> best_parent) {
+std::shared_ptr<Node> RadixTree::AddProxy(std::shared_ptr<Node>& pNode, std::shared_ptr<Node>& best_parent) {
 	auto pProxiNode = std::make_shared<Node>();
 	std::shared_ptr<Node> pBigParent = best_parent->parent;
 	if (pBigParent) {
@@ -61,7 +61,7 @@ std::shared_ptr<Node> RadixTree::AddProxy(std::shared_ptr<Node> pNode, std::shar
 }
 
 
-void RadixTree::ChangePlaces(std::shared_ptr<Node> pNode, std::shared_ptr<Node> best_parent) {
+void RadixTree::ChangePlaces(std::shared_ptr<Node>& pNode, std::shared_ptr<Node>& best_parent) {
 	if (best_parent->parent) {
 		auto pBigParent = best_parent->parent;
 		if (pBigParent) {
@@ -77,7 +77,7 @@ void RadixTree::ChangePlaces(std::shared_ptr<Node> pNode, std::shared_ptr<Node> 
 }
 
 
-bool RadixTree::FindSubTree(std::shared_ptr<Node> cur_node, std::string& s2search, std::string& prefix, size_t& prev_max, std::shared_ptr<Node> &pBest_node, std::string &parent_label) const {
+bool RadixTree::FindSubTree(const std::shared_ptr<Node>& cur_node, std::string& s2search, std::string& prefix, size_t& prev_max, std::shared_ptr<Node> &pBest_node, std::string &parent_label) const {
 	bool res = false;
 	std::string wholelabel = prefix + cur_node->label;
 	size_t i = NodeCompare(wholelabel, s2search);
@@ -87,7 +87,7 @@ bool RadixTree::FindSubTree(std::shared_ptr<Node> cur_node, std::string& s2searc
 		parent_label = wholelabel;
 		res = true;
 	}
-	for (auto node : cur_node->children)
+	for (auto& node : cur_node->children)
 		res = res | FindSubTree(node, s2search, wholelabel, prev_max, pBest_node, parent_label);
 	return res;
 }
